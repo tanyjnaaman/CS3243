@@ -36,7 +36,7 @@ class Piece:
         self.is_opponent: bool = is_opponent
         self.symbol: str = self.PIECES[self.piece_type]
     
-    def possibleMoves_passThrough(self, board) -> list(tuple((int, int))):
+    def possibleMoves_upTo(self, board) -> list(tuple((int, int))):
         
         def kingMoves():
             possibleMoves = []
@@ -372,9 +372,11 @@ class Piece:
         elif self.piece_type == "Obstacle":
             return []
         elif self.piece_type == "Attack":
-            raise RuntimeError("Attack piece should not be calling Piece.possibleMoves")
+            pass
+            # raise RuntimeError("Attack piece should not be calling Piece.possibleMoves_upTo")
         else:
-            raise RuntimeError("Unidentified piece type calling Piece.possibleMoves")
+            pass
+            # raise RuntimeError("Unidentified piece type calling Piece.possibleMoves_upTo")
 
     def possibleMoves(self, board) -> list(tuple((int, int))): 
         
@@ -689,11 +691,300 @@ class Piece:
         elif self.piece_type == "Obstacle":
             return []
         elif self.piece_type == "Attack":
-            raise RuntimeError("Attack piece should not be calling Piece.possibleMoves")
+            pass
+            # raise RuntimeError("Attack piece should not be calling Piece.possibleMoves")
         else:
-            raise RuntimeError("Unidentified piece type calling Piece.possibleMoves")
+            pass
+            # raise RuntimeError("Unidentified piece type calling Piece.possibleMoves")
+
+    def possibleMoves_passThrough(self, board) -> list(tuple((int, int))):
+        
+        def kingMoves():
+            possibleMoves = []
+            for col_offset in range(-1, 2):
+                for row_offset in range(-1, 2):
+
+                    # ignore current position
+                    if row_offset == 0 and col_offset == 0:
+                        continue
+                        
+                    # find valid positions
+                    new_col = col + col_offset
+                    new_row = row + row_offset
+                    new_position = (new_col, new_row)
+
+                    if (board.isPositionInBoard(new_position)):
+                        possibleMoves.append(new_position)
+
+            return possibleMoves
+        
+        def queenMoves():
+            possibleMoves = []
+
+            # go left
+            for col_offset in range(1, board.columns):
+
+                new_col = col - col_offset
+                new_row = row
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+                
+                possibleMoves.append(new_position)
+
+                
+            # go right
+            for col_offset in range(1, board.columns):
+                new_col = col + col_offset
+                new_row = row
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+                
+
+            # go up
+            for row_offset in range(1, board.rows):
+                new_col = col 
+                new_row = row + row_offset
+                new_position = (new_col, new_row)
+
+                if row_offset == 0:
+                    continue
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            # go down
+            for row_offset in range(1, board.rows):
+                new_col = col 
+                new_row = row - row_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            # diagonals have a max bound
+            max_offset = max(board.rows, board.columns)
+
+            # go up left
+            for diagonal_offset in range(1, max_offset):
+                new_col = col - diagonal_offset
+                new_row = row + diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+                
+
+            # go up right
+            for diagonal_offset in range(1, max_offset):
+                new_col = col + diagonal_offset
+                new_row = row + diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+
+            # go down left
+            for diagonal_offset in range(1, max_offset):
+                new_col = col - diagonal_offset
+                new_row = row - diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+                
+
+            # go down right
+            for diagonal_offset in range(1, max_offset):
+                new_col = col + diagonal_offset
+                new_row = row - diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            return possibleMoves
+
+        def rookMoves():
+            possibleMoves = []
+
+            # go left
+            for col_offset in range(1, board.columns):
+                new_col = col - col_offset
+                new_row = row
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            # go right
+            for col_offset in range(1, board.columns):
+                new_col = col + col_offset
+                new_row = row
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            # go up
+            for row_offset in range(1, board.rows):
+                new_col = col 
+                new_row = row + row_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+                
+                if (board.isPositionInBoard(new_position) 
+                    and board.isPositionOccupied(new_position)):                    
+                    break
+
+            # go down
+            for row_offset in range(1, board.rows):
+                new_col = col 
+                new_row = row - row_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            return possibleMoves
+
+        def bishopMoves():
+            possibleMoves = []
+
+            # diagonals have a max bound
+            max_offset = max(board.rows, board.columns)
+
+            # go up left
+            for diagonal_offset in range(1, max_offset):
+                new_col = col - diagonal_offset
+                new_row = row + diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            # go up right
+            for diagonal_offset in range(1, max_offset):
+                new_col = col + diagonal_offset
+                new_row = row + diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+            # go down left
+            for diagonal_offset in range(1, max_offset):
+                new_col = col - diagonal_offset
+                new_row = row - diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+
+            # go down right
+            for diagonal_offset in range(1, max_offset):
+                new_col = col + diagonal_offset
+                new_row = row - diagonal_offset
+                new_position = (new_col, new_row)
+
+                if not board.isPositionInBoard(new_position):
+                    continue
+
+                possibleMoves.append(new_position)
+
+
+            return possibleMoves
+        
+        def knightMoves():
+            possibleMoves = []
+            offset_1 = [1, -1]
+            offset_2 = [2, -2]
+
+            # col offset by 1, row offset by 2
+            for delta_1 in offset_1:
+                for delta_2 in offset_2:
+                    new_col = col + delta_1
+                    new_row = row + delta_2
+                    new_position = (new_col, new_row)
+                    if (board.isPositionInBoard(new_position)):
+                        possibleMoves.append(new_position)
+
+
+            # col offset by 2, row offset by 1
+            for delta_1 in offset_1:
+                for delta_2 in offset_2:
+                    new_col = col + delta_2
+                    new_row = row + delta_1
+                    new_position = (new_col, new_row)
+                    if board.isPositionInBoard(new_position):                        
+                        possibleMoves.append(new_position)
+
+            
+            return possibleMoves
+
+        col, row = self.current_position
+        
+        if self.piece_type == "King":
+            return kingMoves()
+        elif self.piece_type == "Queen":
+            return queenMoves()
+        elif self.piece_type == "Rook":
+            return rookMoves()
+        elif self.piece_type == "Bishop":
+            return bishopMoves()
+        elif self.piece_type == "Knight":
+            return knightMoves()
+        elif self.piece_type == "Obstacle":
+            return []
+        elif self.piece_type == "Attack":
+            pass
+            # raise RuntimeError("Attack piece should not be calling Piece.possibleMoves_passThrough")
+        else:
+            pass
+            # raise RuntimeError("Unidentified piece type calling Piece.possibleMoves_passThrough")
 
     def possibleAttacks(self, board) -> list:
+        attackPieces = []
+        for col, row in self.possibleMoves_upTo(board):
+            attackPieces.append((col, row, Piece("Attack", (col, row), is_opponent = True)))
+        return attackPieces
+
+    def possibleAttacks_passThrough(self, board) -> list:
         attackPieces = []
         for col, row in self.possibleMoves_passThrough(board):
             attackPieces.append((col, row, Piece("Attack", (col, row), is_opponent = True)))
@@ -764,7 +1055,16 @@ class Board:
         self.addPiece(piece, piece_position)
         
         # update position with "Attack"
-        for col, row, attackPiece in piece.possibleAttacks(self):
+        for col, row, _ in piece.possibleAttacks(self):
+            self.attacks_grid[row][col] += 1
+
+    def addPiece_withAttacks_passThrough(self, piece: Piece, piece_position: tuple((int, int))):
+        # add piece to board
+
+        self.addPiece(piece, piece_position)
+        
+        # update position with "Attack"
+        for col, row, _ in piece.possibleAttacks_passThrough(self):
             self.attacks_grid[row][col] += 1
 
     def removePiece_withAttacks(self, piece_position: tuple((int, int))):
@@ -776,7 +1076,19 @@ class Board:
         self.removePiece(piece_position)
         
         # update position with "Attack" by reducing count
-        for col, row, attackPiece in piece.possibleAttacks(self):
+        for col, row, _ in piece.possibleAttacks(self):
+            self.attacks_grid[row][col] -= 1
+
+    def removePiece_withAttacks_passThrough(self, piece_position: tuple((int, int))):
+
+        # get piece
+        piece: Piece = self.pieces_table.get(piece_position)
+
+        # remove piece from board
+        self.removePiece(piece_position)
+        
+        # update position with "Attack" by reducing count
+        for col, row, _ in piece.possibleAttacks_passThrough(self):
             self.attacks_grid[row][col] -= 1
 
     def removePiece(self, piece_position: tuple((int, int))):
@@ -946,13 +1258,85 @@ def evaluation_function(board: Board) -> float:
                 count += 1
         return count
 
-    value = numberInAttackPositions()
+    def numberInAttackPositions_notZeroWithPieceValues():
+
+        PIECES_VALUE = {
+        "King": 8,
+        "Queen": 26,
+        "Rook": 10,
+        "Bishop": 13,
+        "Knight": 8,
+        "Obstacle": "X",
+        "Attack": "!"
+        }
+
+        value = numberInAttackPositions()
+        if value != 0:
+            # value by piece type
+            pieces = [PIECES_VALUE.get(board.getPiece(i).piece_type) for i in board.getPiecePositions()]
+            pieces = list(filter(lambda item: isinstance(item, int), pieces))
+            value += sum(pieces)
+
+        return value
+            
+    value = numberInAttackPositions_notZeroWithPieceValues()
 
     return value
 
 def successor_generation(board: Board, reservePieces: list) -> tuple((Board, tuple((int, int)))): # only by removing pieces
 
-    def top():
+    def top1():
+
+        # initialize
+        bestPositionToRemove = None
+        bestReserveToAddIndex = None
+        bestValue = evaluation_function(board)
+
+        # find best to remove
+        positions = board.getPiecePositions()
+        for p in positions:
+
+            # remove position
+            removedPiece = board.getPiece(p)
+            board.removePiece_withAttacks_passThrough(p)
+
+            for i in range(len(reservePieces)):
+
+                pos, piece = reservePieces[i]
+                
+                # add reserve piece
+                board.addPiece_withAttacks_passThrough(piece, pos)
+
+                # evaluate and rank
+                val = evaluation_function(board)
+                if val < bestValue:
+                    bestValue = val
+                    bestPositionToRemove = p
+                    bestReserveToAddIndex = i
+
+                # remove reserve piece to restore state
+                board.removePiece_withAttacks_passThrough(pos)
+
+            # add back to restore state
+            board.addPiece_withAttacks_passThrough(removedPiece, p)
+        
+        # apply best change permanently, if no changes, return
+        if bestPositionToRemove is None:
+            return board, bestValue, reservePieces
+
+        # remove existing, put to reserve
+        piece = board.getPiece(bestPositionToRemove)
+        board.removePiece_withAttacks_passThrough(bestPositionToRemove) 
+        reservePieces.append((bestPositionToRemove, piece))
+
+        # move from reserve to main board
+        pos, piece = reservePieces.pop(bestReserveToAddIndex) 
+        board.addPiece_withAttacks_passThrough(piece, pos)
+        
+
+        return board, bestValue, reservePieces
+
+    def stochastic_first():
 
         # initialize
         values = []
@@ -966,14 +1350,14 @@ def successor_generation(board: Board, reservePieces: list) -> tuple((Board, tup
 
             # remove position
             removedPiece = board.getPiece(p)
-            board.removePiece_withAttacks(p)
+            board.removePiece_withAttacks_passThrough(p)
 
             for i in range(len(reservePieces)):
 
                 pos, piece = reservePieces[i]
                 
                 # add reserve piece
-                board.addPiece_withAttacks(piece, pos)
+                board.addPiece_withAttacks_passThrough(piece, pos)
 
                 # evaluate and rank
                 val = evaluation_function(board)
@@ -981,12 +1365,13 @@ def successor_generation(board: Board, reservePieces: list) -> tuple((Board, tup
                     bestValue = val
                     bestPositionToRemove = p
                     bestReserveToAddIndex = i
+                    break
 
                 # remove reserve piece to restore state
-                board.removePiece_withAttacks(pos)
+                board.removePiece_withAttacks_passThrough(pos)
 
             # add back to restore state
-            board.addPiece_withAttacks(removedPiece, p)
+            board.addPiece_withAttacks_passThrough(removedPiece, p)
         
         # apply best change permanently, if no changes, return
         if bestPositionToRemove is None:
@@ -994,17 +1379,68 @@ def successor_generation(board: Board, reservePieces: list) -> tuple((Board, tup
 
         # remove existing, put to reserve
         piece = board.getPiece(bestPositionToRemove)
-        board.removePiece_withAttacks(bestPositionToRemove) 
+        board.removePiece_withAttacks_passThrough(bestPositionToRemove) 
         reservePieces.append((bestPositionToRemove, piece))
 
         # move from reserve to main board
         pos, piece = reservePieces.pop(bestReserveToAddIndex) 
-        board.addPiece_withAttacks(piece, pos)
+        board.addPiece_withAttacks_passThrough(piece, pos)
         
-
         return board, bestValue, reservePieces
 
-    board, value, newReservePieces = top()
+    def stochastic_topk():
+
+        # initial value
+        initial_val = evaluation_function(board)
+
+        k = 5
+
+        positions = board.getPiecePositions()
+        possibilities = []
+        for p in positions:
+
+            # remove position
+            removedPiece = board.getPiece(p)
+            board.removePiece_withAttacks_passThrough(p)
+
+            for i in range(len(reservePieces)):
+
+                pos, piece = reservePieces[i]
+                
+                # add reserve piece
+                board.addPiece_withAttacks_passThrough(piece, pos)
+
+                # evaluate and rank
+                val = evaluation_function(board)                
+                possibilities.append((val, p, i))
+
+                # remove reserve piece to restore state
+                board.removePiece_withAttacks_passThrough(pos)
+
+            # add back to restore state
+            board.addPiece_withAttacks_passThrough(removedPiece, p)
+
+        # sort and rank
+        possibilities.sort(key = lambda tup : tup[0])
+
+        # take randomly from top k
+        select = random.randint(0, k - 1)
+        val, pos, i = possibilities[select]
+
+        # remove existing, put to reserve
+        piece = board.getPiece(pos)
+        board.removePiece_withAttacks_passThrough(pos) 
+        reservePieces.append((pos, piece))
+
+        # move from reserve to main board
+        pos, piece = reservePieces.pop(i) 
+        board.addPiece_withAttacks_passThrough(piece, pos)
+        # print(board)
+        # print("value: ", val, "\n")
+
+        return board, val, reservePieces
+        
+    board, value, newReservePieces = stochastic_topk()
     return board, value, newReservePieces
 
   
@@ -1018,14 +1454,15 @@ def local_search(board: Board, offBoardPieces: list):
     while True:
 
         # generate successor
-        # print("\ncurrent value: ", current_value)
         best_successor, value, reservePieces = successor_generation(current, reservePieces)
+        # print("\ncurrent value: ", current_value)
         # print("best successor value: ", value)
         # print(best_successor)
 
         # see if need to terminate
-        if (value >= current_value):
+        if (value > current_value) or value == 0:
             return board.toDictionary(), board
+
         else:
             current = best_successor
             current_value = value
@@ -1047,7 +1484,7 @@ def random_initialization_search(rows: int, cols: int, n: int, k: int, pieces: l
 
     for i in indices:
         pos, piece = pieces[i]
-        board.addPiece_withAttacks(piece, pos)
+        board.addPiece_withAttacks_passThrough(piece, pos)
 
     remainingPieces = []
     for i in range(n):
@@ -1062,29 +1499,6 @@ def random_initialization_search(rows: int, cols: int, n: int, k: int, pieces: l
 
 
 
-def test_run():
-
-    print("===== TEST RUN =====")
-    
-    input_filepath = argv[1]
-    rows, cols, pieces, k, n, obstacles = parse(input_filepath)
-    print("board dimensions are (rows x cols): ", rows, "x", cols)
-    print("k is :", k)
-    print("pieces are: \n", pieces)
-    print("obstacles are: \n", obstacles)
-
-    # random initialization search
-    isGoal = False
-    while not isGoal:
-        dictionary, board = random_initialization_search(rows ,cols, n, k, pieces, obstacles)
-        isGoal = board.isSolutionTo8Queens()
-
-    print("\nSOLUTION!")
-    print(repr(board))
-    print(dictionary)
-    print("===========")
-
-    
 
 
 ### DO NOT EDIT/REMOVE THE FUNCTION HEADER BELOW###
@@ -1110,5 +1524,29 @@ def run_local():
     return goalState #Format to be returned
 
 # runs
-# test_run()
 # print(run_local())
+
+# def test_run():
+
+#     print("===== TEST RUN =====")
+    
+#     input_filepath = argv[1]
+#     rows, cols, pieces, k, n, obstacles = parse(input_filepath)
+#     print("board dimensions are (rows x cols): ", rows, "x", cols)
+#     print("k is :", k)
+#     print("pieces are: \n", pieces)
+#     print("obstacles are: \n", obstacles)
+
+#     # random initialization search
+#     isGoal = False
+#     while not isGoal:
+#         dictionary, board = random_initialization_search(rows ,cols, n, k, pieces, obstacles)
+#         isGoal = board.isSolutionTo8Queens()
+
+#     print("\nSOLUTION!")
+#     print(repr(board))
+#     print(dictionary)
+#     print("===========")
+
+
+# test_run()
