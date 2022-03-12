@@ -3,19 +3,7 @@ import sys
 ### IMPORTANT: Remove any print() functions or rename any print functions/variables/string when submitting on CodePost
 ### The autograder will not run if it detects any print function.
 
-# Helper functions to aid in your implementation. Can edit/remove
-class Piece:
-    pass
-
-class Board:
-    pass
-
-class State:
-    pass
-
-def search():
-    pass
-
+def 
 
 ### DO NOT EDIT/REMOVE THE FUNCTION HEADER BELOW###
 # To return: Goal State which is a dictionary containing a mapping of the position of the grid to the chess piece type.
@@ -29,3 +17,14 @@ def run_CSP():
 
     goalState = search()
     return goalState #Format to be returned
+
+"""
+Idea: we want to begin by assigning variables, domains and constraints.
+
+Variables: implicitly modelled by the board
+Domains: a new data structure needed to keep track
+constraints: implicitly modelled by a check
+
+1. initialization: We can initialize sets of variables, domains and constraints
+2. baktracking algorithm 
+"""
