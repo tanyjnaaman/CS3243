@@ -1523,30 +1523,30 @@ def run_local():
 
     return goalState #Format to be returned
 
-# runs
-# print(run_local())
+runs
+print(run_local())
 
-# def test_run():
+def test_run():
 
-#     print("===== TEST RUN =====")
+    print("===== TEST RUN =====")
     
-#     input_filepath = argv[1]
-#     rows, cols, pieces, k, n, obstacles = parse(input_filepath)
-#     print("board dimensions are (rows x cols): ", rows, "x", cols)
-#     print("k is :", k)
-#     print("pieces are: \n", pieces)
-#     print("obstacles are: \n", obstacles)
+    input_filepath = argv[1]
+    rows, cols, pieces, k, n, obstacles = parse(input_filepath)
+    print("board dimensions are (rows x cols): ", rows, "x", cols)
+    print("k is :", k)
+    print("pieces are: \n", pieces)
+    print("obstacles are: \n", obstacles)
 
-#     # random initialization search
-#     isGoal = False
-#     while not isGoal:
-#         dictionary, board = random_initialization_search(rows ,cols, n, k, pieces, obstacles)
-#         isGoal = board.isSolutionTo8Queens()
+    # random initialization search
+    isGoal = False
+    while not isGoal:
+        dictionary, board = random_initialization_search(rows ,cols, n, k, pieces, obstacles)
+        isGoal = board.isSolutionTo8Queens()
 
-#     print("\nSOLUTION!")
-#     print(repr(board))
-#     print(dictionary)
-#     print("===========")
+    print("\nSOLUTION!")
+    print(repr(board))
+    print(dictionary)
+    print("===========")
 
 
-# test_run()
+test_run()
