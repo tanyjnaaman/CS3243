@@ -1,11 +1,8 @@
-from ast import Raise
-from copy import deepcopy
-from operator import is_
 import sys
 import random
 
 
-### IMPORTANT: Remove any print() functions or rename any print functions/variables/string when submitting on CodePost
+### IMPORTANT: Remove any # print() functions or rename any print functions/variables/string when submitting on CodePost
 ### The autograder will not run if it detects any print function.
 
 
@@ -26,22 +23,13 @@ class Piece:
     def __init__(
         self, 
         piece_type: str, 
-        current_position: tuple((int, int)),
-        domain: set = set(), 
-        is_opponent: bool = True):
+        current_position: tuple((int, int))):
 
         self.piece_type:str  = piece_type
         self.current_position = current_position
-        self.is_opponent: bool = is_opponent
         self.symbol: str = self.PIECES[self.piece_type]
-        self.domain: set = domain
+        self.attacks: dict = dict()
 
-    def removeFromDomain(self, position: tuple((int, int))):
-        self.domain.remove(position)
-    
-    def getDomainSize(self):
-        return len(self.domain)
-    
     def possibleMoves_upTo(self, board) -> list(tuple((int, int))):
         
         def kingMoves():
@@ -56,13 +44,10 @@ class Piece:
                     # find valid positions
                     new_col = col + col_offset
                     new_row = row + row_offset
-                    new_position = (new_col, new_row)
+                    new_position = (new_col, new_row    )
 
-                    if (board.isPositionInBoard(new_position)):
+                    if board.isPositionInBoard(new_position):
                         possibleMoves.append(new_position)
-                        if (board.isPositionInBoard(new_position) 
-                            and board.isPositionOccupied(new_position)):
-                            break
 
             return possibleMoves
         
@@ -80,6 +65,7 @@ class Piece:
                     continue
                 
                 possibleMoves.append(new_position)
+
                 if (board.isPositionInBoard(new_position) 
                     and board.isPositionOccupied(new_position)):                    
                     break
@@ -344,9 +330,6 @@ class Piece:
                     if (board.isPositionInBoard(new_position)):
                         possibleMoves.append(new_position)
 
-                    if (board.isPositionInBoard(new_position) 
-                        and board.isPositionOccupied(new_position)):                    
-                        break
 
             # col offset by 2, row offset by 1
             for delta_1 in offset_1:
@@ -357,9 +340,6 @@ class Piece:
                     if board.isPositionInBoard(new_position):                        
                         possibleMoves.append(new_position)
                     
-                    if (board.isPositionInBoard(new_position) 
-                        and board.isPositionOccupied(new_position)):                    
-                        break
             
             return possibleMoves
 
@@ -667,16 +647,10 @@ class Piece:
 
     def possibleAttacks(self, board) -> list:
         attackPieces = []
-        for col, row in self.possibleMoves_upTo(board):
-            attackPieces.append((col, row, Piece("Attack", (col, row), is_opponent = True)))
+        attacks = self.getAttacks(board, self.current_position)
+        for col, row in attacks:
+            attackPieces.append((col, row))
         return attackPieces
-
-    def possibleAttacks_passThrough(self, board) -> list:
-        attackPieces = []
-        for col, row in self.possibleMoves_passThrough(board):
-            attackPieces.append((col, row, Piece("Attack", (col, row), is_opponent = True)))
-        return attackPieces
-    
 
     @staticmethod
     def convertAsciiPositionToXy(ascii_position: str) -> tuple((int, int)):
@@ -693,59 +667,33 @@ class Piece:
     def positionToAsciiTuple(self):
         return Piece.convertXyToAsciiTuple(self.current_position)
 
-    def getSequenceOfValues(self, board) -> list(tuple((int, int))):
+    def getAttacks(self, board, position: tuple) -> list:
+        attacks = self.attacks.get(position)
+        if attacks is None:
+            original = self.current_position
+            self.current_position = position
+            attacks = self.possibleMoves_upTo(board)
+            self.attacks[position] = attacks # store
+            self.current_position = original
 
-        def random_sequence():
-            values = list(self.domain)
-            indices = [i for i in range(len(values))]
-            random.shuffle(indices)
-            sequence = [values[i] for i in indices]
+        return attacks
 
-            return sequence
+    
+    def setPosition(self, position: tuple):
+        self.current_position = position
 
-        def random_filtered_sequence():
-            values = list(self.domain)
-            indices = [i for i in range(len(values))]
-            random.shuffle(indices)
-            sequence = []
-            for i in indices:
-                pos = values[i]
-                if not (board.isPositionOccupied(pos) or board.isPositionAttacked(pos)):
-                    sequence.append(pos)
-            
-            return sequence
-
-        def fixed_sequence():
-            return list(self.domain)
-
-        def fixed_filtered_sequence():
-            values = list(self.domain)
-            sequence = []
-            for i in values:
-                if not (board.isPositionOccupied(i) or board.isPositionAttacked(i)):
-                    sequence.append(i)
-            
-            return sequence
-        
-        sequence = fixed_filtered_sequence()
-
-        return sequence
-
-    def updateDomainBasedOn(self, board):
-        new_domain: set = set()
-        for pos in self.domain:
-            if not (board.isPositionOccupied(pos) or board.isPositionAttacked(pos)):
-                new_domain.add(pos)
-        self.domain = new_domain
-        return new_domain
-
+    def clearPosition(self):
+        self.current_position = None
+    
 
 
     def __repr__(self) -> str:
-        if self.is_opponent:
-            return "\033[1;31m" + self.symbol + "\033[0;0m" # red
-        else:
-            return "\033[1;32m" + self.symbol + "\033[0;0m" # green
+        # if self.is_opponent:
+        # if self.symbol == Piece.PIECES["Obstacle"]:
+        #     return str(self.symbol)
+        return "\033[1;33m" + self.symbol + "\033[0;0m" # red
+        # else:
+        #     return "\033[1;32m" + self.symbol + "\033[0;0m" # green
 
     def __str__(self) -> str:
         return self.symbol
@@ -765,15 +713,14 @@ class Piece:
 
 
 class Board:
-    def __init__(self, rows: int, columns: int):
+    def __init__(self, rows: int, columns: int, numObstacles: int):
         self.rows: int = rows
         self.columns:int  = columns 
         self.pieces_grid: list(list(Piece)) = [[None for x in range(self.columns)] for y in range(self.rows)]
         self.attacks_grid: list(list(int)) = [[0 for x in range(self.columns)] for y in range(self.rows)]
         self.pieces_table: dict = dict()
+        self.numObstacles = numObstacles
 
-    def clear_attack_grid(self):
-        self.attacks_grid = [[None for x in range(self.columns)] for y in range(self.rows)]
 
     def getPiece(self, piece_position: tuple((int, int))) -> Piece:
         return self.pieces_table.get(piece_position)
@@ -782,54 +729,38 @@ class Board:
         col, row = piece_position
         self.pieces_grid[row][col] = piece
         self.pieces_table[piece_position] = piece
+        piece.setPosition(piece_position)
+
+    def removePiece(self, piece_position: tuple((int, int))):
+        col, row = piece_position
+        piece: Piece = self.pieces_grid[row][col]
+        self.pieces_grid[row][col] = None
+        self.pieces_table.pop(piece_position)
+        piece.clearPosition()
 
     def addPiece_withAttacks(self, piece: Piece, piece_position: tuple((int, int))):
+        
         # add piece to board
-
         self.addPiece(piece, piece_position)
         
         # update position with "Attack"
-        for col, row, _ in piece.possibleAttacks(self):
-            self.attacks_grid[row][col] += 1
+        attackPositions = piece.possibleAttacks(self)
 
-    def addPiece_withAttacks_passThrough(self, piece: Piece, piece_position: tuple((int, int))):
-        # add piece to board
-
-        self.addPiece(piece, piece_position)
-        
-        # update position with "Attack"
-        for col, row, _ in piece.possibleAttacks_passThrough(self):
+        # upfate board with attacks
+        for col, row in attackPositions:
             self.attacks_grid[row][col] += 1
 
     def removePiece_withAttacks(self, piece_position: tuple((int, int))):
 
         # get piece
         piece: Piece = self.pieces_table.get(piece_position)
+        
+        # update position with "Attack" by reducing count
+        for col, row in piece.possibleAttacks(self):
+            self.attacks_grid[row][col] -= 1
 
         # remove piece from board
         self.removePiece(piece_position)
-        
-        # update position with "Attack" by reducing count
-        for col, row, _ in piece.possibleAttacks(self):
-            self.attacks_grid[row][col] -= 1
-
-    def removePiece_withAttacks_passThrough(self, piece_position: tuple((int, int))):
-
-        # get piece
-        piece: Piece = self.pieces_table.get(piece_position)
-
-        # remove piece from board
-        self.removePiece(piece_position)
-        
-        # update position with "Attack" by reducing count
-        for col, row, _ in piece.possibleAttacks_passThrough(self):
-            self.attacks_grid[row][col] -= 1
-
-    def removePiece(self, piece_position: tuple((int, int))):
-        col, row = piece_position
-        self.pieces_grid[row][col] = None
-        self.pieces_table.pop(piece_position)
-
 
 
     def isPositionOccupied(self, position: tuple((int, int))) -> bool:
@@ -841,11 +772,7 @@ class Board:
         return self.attacks_grid[row][col] != 0
     
     def numberSafePositions(self) -> int:
-        positions = [(x, y) for x in range(self.columns) for y in range(self.rows)]
-        count = 0
-        for p in positions:
-            if not (self.isPositionOccupied(p) or self.isPositionAttacked(p)):    
-                count += 1
+        count = len(self.getEmptyNonAttackedPositions())
         return count 
 
     def isPositionInBoard(self, position: tuple((int, int))) -> bool:
@@ -854,34 +781,96 @@ class Board:
 
     def toDictionary(self) -> dict:
         out = {}
+
+        PIECES = {
+            "King",
+            "Queen",
+            "Rook",
+            "Bishop",
+            "Knight"
+        }
+
         for y in range(self.rows):
             for x in range(self.columns):
                 piece: Piece = self.pieces_grid[y][x]
-                if  piece != None and piece.symbol != "X":
+                if piece is not None and piece.piece_type in PIECES:
                     out[Piece.convertXyToAsciiTuple((x, y))] = piece.piece_type
-        return out
+        return out  
 
-    def isSolutionTo8Queens(self) -> bool:
+
+    def getPiecePositions(self) -> list(tuple((int, int))):
+        return list(self.pieces_table.keys())
+
+    def isSolution(self, expectedNumPieces) -> bool:
         
-        count = self.positionsUnderAttack()
-        return count == 0
+        # if less then number of expected pieces, return false
+        if len(self.pieces_table) - self.numObstacles < expectedNumPieces:
+            return False 
 
-    def positionsUnderAttack(self)-> int:
+        assert(len(self.pieces_table) - self.numObstacles == expectedNumPieces)
+
+        # else, check if any piece currently is being attacked
+        positions = self.getPiecePositions()
+
+        PIECES = {
+            "King",
+            "Queen",
+            "Rook",
+            "Bishop",
+            "Knight"
+            }
+        
+        for pos in positions:
+            piece: Piece = self.getPiece(pos)
+            if piece.piece_type in PIECES and  self.isPositionAttacked(pos):
+                return False
+
+        return True
+
+    def numPiecesUnderAttack(self)-> int:
         count = 0
         positions = self.getPiecePositions()
         
         for pos in positions:
             piece: Piece = self.getPiece(pos)
-            if piece.symbol == "X":
+            if piece.symbol == "X": # ignore obstacle
                 continue
             x, y = pos
-            if self.attacks_grid[y][x]:
+            if self.attacks_grid[y][x] != 0:
                 count += 1
         return count
+    
+    def canPlaceWithoutAttackingOthers(self, position: tuple, piece:Piece) -> bool:
 
-    def getPiecePositions(self) -> list(tuple((int, int))):
-        return list(self.pieces_table.keys())
-                
+        # see if can place 
+        canPlace = not (self.isPositionOccupied(position) or self.isPositionAttacked(position))
+        if not canPlace:
+            return False
+
+        # see if attacks will attack other pieces on board
+        piecePositionsOnBoard = self.getPiecePositions()
+
+        # get attacks by piece
+        attacks = piece.getAttacks(self, position)
+
+        for p in piecePositionsOnBoard:
+            if p in attacks and self.getPiece(p).symbol != "X":
+                return False # will attack
+        return True
+
+    def getEmptyNonAttackedPositions(self, shuffle = True) -> list:
+
+        emptyNotAttacked = []
+        for x in range(self.columns):
+            for y in range(self.rows):
+                pos = (x, y)
+                if not (self.isPositionAttacked(pos) or self.isPositionOccupied(pos)):
+                    emptyNotAttacked.append(pos)
+
+        if shuffle: 
+            random.shuffle(emptyNotAttacked)
+
+        return emptyNotAttacked
 
     def __repr__(self) -> str:
         out = ""
@@ -902,7 +891,7 @@ class Board:
                 if piece != None:
                     item = repr(piece) 
                     if attack == 0:
-                        item = "\033[1;32m" + str(piece) + "\033[0;0m"
+                        item = "\033[1;32m" + str(piece) + "\033[0;0m" # green
                 elif attack != 0:
                     item = "\033[1;31m" + str(attack) + "\033[0;0m" # red
                 else:
@@ -921,151 +910,91 @@ class Board:
 
         return out
 
-    def isConsistent(self, position: tuple, piece:Piece):
-
-        initialPositionsUnderAttack = self.positionsUnderAttack()
-        canPlace = not (self.isPositionOccupied(position) or self.isPositionAttacked(position))
-
-        if not canPlace:
-            return False
-
-        # place piece
-        piece.current_position = position
-        self.addPiece_withAttacks_passThrough(piece, position)
-
-        # count and check
-        othersNotAffected = self.positionsUnderAttack() == initialPositionsUnderAttack
-        
-        # undo placement
-        self.removePiece_withAttacks_passThrough(position)
-
-        # return judgement
-        return canPlace and othersNotAffected
-
 
 class CSP:
-
-    def __init__(self, initial_assignment: Board, pieces: list):
-
-        # intiialize
-        self.assignment: Board = initial_assignment
-        self.pieces: list(Piece) = deepcopy(pieces)
-        self.unassigned_pieces: list(Piece) = deepcopy(pieces)
-        self.depth = 0
-        self.count = 0
     
-    def backtracking_search(self):
-
-        # print("\n ===== NEW CALL TO backtracking_search() =====")
-        # if solution, return
-        if self.assignment.isSolutionTo8Queens() and len(self.unassigned_pieces) == 0:
-            return self.assignment.toDictionary(), self.assignment
-
-        # if not solution, get variable to assign, and sequence of values to try assigning
-        piece_variable: Piece = CSP.selectByPopUnassignedVariable(self.unassigned_pieces)
-        values = piece_variable.getSequenceOfValues(self.assignment)
+    def backtrack(self, board: Board, unassignedPieces: list, expectedNumPieces: int):
         
-        for position in values:
-            if self.assignment.isConsistent(position, piece_variable):
+        # print("\n====== NEW CALL TO BACKTRACK =====")
+
+        if board.isSolution(expectedNumPieces):
+            return board
+        
+        piece: Piece = unassignedPieces[0]
+
+        positionsToPlace = board.getEmptyNonAttackedPositions()
+
+        for position in positionsToPlace:
+            # print("trying: ", position, piece)
+
+            if not board.canPlaceWithoutAttackingOthers(position, piece):
+                # print("cannot place without attacking other")
+                continue # try next position
+
+            # print("can place!")
+
+
+            # place and infer by looking ahead
+            board.addPiece_withAttacks(piece, position)            
+            is_viable = self.infer(board, unassignedPieces[1:])
+            if is_viable:
+                # print("is viable!")            
+                # print("after placing:")
+                # print(board)
+                # print(unassignedPieces[1:])
+
+                result = self.backtrack(board, unassignedPieces[1:], expectedNumPieces)
+                if result != False:
+                    return result
                 
-                # add piece
-                self.assignment.addPiece_withAttacks_passThrough(piece_variable, position)
-                # print("assigned ", piece_variable, " to ", position)
-                # print(self.assignment)
-                # print("variables left: ", len(self.unassigned_pieces), ", ", self.unassigned_pieces)
-                self.count += 1
-                # print("assignments tried = ", self.count)
+            # undo
+            # print("not viable, or result failed.")
+            board.removePiece_withAttacks(position)
+            # print("board is, after removal: ")
+            # print(board)
 
-                # inference and recursion
-                is_viable = self.infer(self.unassigned_pieces)
+        # print("need to backtrack!\n")
+        return False
 
-                if is_viable:
-                    self.depth += 1
-                    self.infer(self.unassigned_pieces, modify = True)
-                    result = self.backtracking_search() # recursive call
-                    if result != (False, False): # if valid result found at base of recursion, return
-                        return result
-                    else: #failed, backtrack
-                        # print("\n===== BACKTRACKING =====")
-                        self.unassigned_pieces = deepcopy(self.pieces[self.depth:len(self.pieces)])
-                        # print("updated unassigned pieces to: ", self.unassigned_pieces)
-                        self.depth -=1 
-                    
-                # else undo assignment
-                self.assignment.removePiece_withAttacks_passThrough(position)
-                # print("\nnot viable, undoing assignment!")
-                # print(self.assignment)
-                # print("variables left: ", self.unassigned_pieces)
-                # print("\n")
 
-        
-        return False, False # return false if no viable found 
-
-    
-    def infer(self, unassigned_pieces: list,  modify = False):
+    def infer(self, board: Board, unassigned_pieces: list):
         
         def forward_checking():
-
-            # look through remaining unassigned variables and eliminate illegal values
-            for p in self.unassigned_pieces:
-                piece: Piece = p
-                if not modify:
-                    piece: Piece = deepcopy(p)
-
-                piece.updateDomainBasedOn(self.assignment)
-                if piece.getDomainSize() == 0:
-                    return False
-                
-            return True
-
-        def heuristic_asMany():
-            safePositions = self.assignment.numberSafePositions()
-            piecesLeft = len(unassigned_pieces)
-            if piecesLeft > safePositions:
-                # print("safe positions is ", safePositions, " but pieces left is ", piecesLeft)
-                return False
-            return True
             
-        if not heuristic_asMany():
-            return False
+            # if not enough safe positions left, confirm cannot
+            if board.numberSafePositions() < len(unassigned_pieces):
+                return False
+
+            
+            return True
 
         inference = forward_checking()
     
         return inference
-
-
     
-    def selectByPopUnassignedVariable(pieces: list) -> Piece:
+    def orderPieces(self, pieces: list) -> list:
 
         PIECES_VALUE = {
                 "King": 8,
                 "Queen": 26,
-                "Rook": 10,
+                "Rook": 14,
                 "Bishop": 13,
-                "Knight": 8,
+                "Knight": 9,
                 "Obstacle": "X",
                 "Attack": "!"
                 }
 
-        def minimum_remaining_values():
-            pieces.sort(key = lambda p : p.getDomainSize())
-            return pieces.pop(0)
-
         def by_piece_type():
-            pieces.sort(key = lambda p : PIECES_VALUE[p.piece_type])
-            return pieces.pop(0)
+            pieces.sort(key = lambda p : PIECES_VALUE[p.piece_type], reverse = True)
+            return pieces
 
-        def MRV_then_piece_type():
-            pieces.sort(key = lambda p : (p.getDomainSize(), PIECES_VALUE[p.piece_type]))
-            return pieces.pop(0)
+        def random():
+            random.shuffle(pieces)
+            return pieces
 
-        def piece_type_then_MRV():
-            pieces.sort(key = lambda p : (PIECES_VALUE[p.piece_type], p.getDomainSize()))
-            return pieces.pop(0)
+        sequence = by_piece_type()
 
-        selected_piece = MRV_then_piece_type()
-
-        return selected_piece 
+        return sequence 
 
 
 
@@ -1091,7 +1020,8 @@ def parse(file_path: str):
                         Piece("Obstacle", obstacle_positions[i])) for i in range(num_obstacles)]
 
     # add obstacles
-    board = Board(rows, columns)
+    numObstacles = len(obstacles)
+    board = Board(rows, columns, numObstacles)
     for i in obstacles:
         pos = i[0]
         obs = i[1]
@@ -1105,68 +1035,77 @@ def parse(file_path: str):
 
     # create a piece with domain for each piece
     pieces = []
-    domain = [(x, y) for x in range(columns) for y in range(rows)]
     for piece_type in range(len(num_pieces)):
         if piece_type == 0:
             for i in range(num_pieces[piece_type]):
-                pieces.append(Piece("King", None, deepcopy(domain)))
+                pieces.append(Piece("King", None))
         elif piece_type == 1:
             for i in range(num_pieces[piece_type]):
-                pieces.append(Piece("Queen", None, deepcopy(domain)))                
+                pieces.append(Piece("Queen", None))                
         elif piece_type == 2:
             for i in range(num_pieces[piece_type]):
-                pieces.append(Piece("Bishop", None, deepcopy(domain)))
+                pieces.append(Piece("Bishop", None))
         elif piece_type == 3:
             for i in range(num_pieces[piece_type]):
-                pieces.append(Piece("Rook", None, deepcopy(domain)))
+                pieces.append(Piece("Rook", None))
         elif piece_type == 4:
             for i in range(num_pieces[piece_type]):
-                pieces.append(Piece("Knight", None, deepcopy(domain)))
+                pieces.append(Piece("Knight", None))
         else:
-            Raise("Wrong type?")
+            pass # do nothing
 
 
     return pieces, board
         
 
-def test_run():
+# def test_run():
 
-    # parse
-    print("===== TEST RUN =====")
+#     # random.seed(2)
+
+#     # parse
+#     # print("===== TEST RUN =====")
     
-    input_filepath = sys.argv[1]
-    pieces, board = parse(input_filepath)
-    print("board is: \n", board)
-    print("pieces are: \n", pieces)
+#     input_filepath = sys.argv[1]
+#     pieces, board = parse(input_filepath)
+#     # print("board is: \n", board)
 
-    # initialize CSP
-    csp = CSP(board, pieces)
+#     # initialize CSP
+#     csp = CSP()
 
-    # CSP backtracking search
-    dictionary, board = csp.backtracking_search()
+#     # sort pieces in order of minimum constraints
+#     pieces = csp.orderPieces(pieces)
+#     # print("pieces are: \n", pieces)
 
-    print("\nSOLUTION!")
-    print(repr(board))
-    print(dictionary)
-    print("===========")
 
-import time
+#     # CSP backtracking search
+#     board = csp.backtrack(board, pieces, len(pieces))
 
-times = []
-n = 10
-for i in range(n):
-    start = time.time()
-    test_run()
-    end = time.time()
-    times.append(end - start)
+#     # print("\nSOLUTION!")
+#     # print(repr(board))
+#     # print(board.attacks_grid)
+#     # print(board.toDictionary())
+#     # print("===========")
 
-import statistics
-avg = sum(times)/n
-stdev = statistics.stdev(times)
+# import time
 
-print("\ntook ", avg, "s on average\n")
-print("stdev was ", stdev)
+# times = []
+# n = 10
+# for i in range(n):
+#     start = time.time()
+#     test_run()
+#     end = time.time()
+#     times.append(end - start)
+
+# import statistics
+# avg = statistics.geometric_mean(times)
+
+# print("\ntook ", avg, "s on average\n")
+# print("times were: ", times)
+# if n > 1:
+#     stdev = statistics.stdev(times)
+#     print("stdev was ", stdev)
     
+# print(run_CSP())
 
 ### DO NOT EDIT/REMOVE THE FUNCTION HEADER BELOW###
 # To return: Goal State which is a dictionary containing a mapping of the position of the grid to the chess piece type.
@@ -1177,18 +1116,26 @@ print("stdev was ", stdev)
 def run_CSP():
     # You can code in here but you cannot remove this function or change the return type
     testfile = sys.argv[1] #Do not remove. This is your input testfile.
-    
+        
+    random.seed(0)
+
     # parse
-    testfile = sys.argv[1]
     pieces, board = parse(testfile)
 
     # initialize CSP
-    csp = CSP(board, pieces)
+    csp = CSP()
+
+    # sort pieces in order of minimum constraints
+    pieces = csp.orderPieces(pieces)
+
 
     # CSP backtracking search
-    dictionary, board = csp.backtracking_search()
+    board = csp.backtrack(board, pieces, len(pieces))
+    solution = board.toDictionary()
 
-    return dictionary #Format to be returned
+    assert len(solution) == len(pieces)
+
+    return solution
 
 """
 Idea: 
@@ -1199,4 +1146,3 @@ We can model an assignment as a given board state. We can model domains as an ad
 Piece class. 
 """
 
-# print(run_CSP())
