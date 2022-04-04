@@ -419,8 +419,8 @@ class Piece:
         elif self.piece_type == "Pawn":
             return pawnplays()
         else:
-            # pass
-            raise RuntimeError("Unidentified piece type calling possibleplays!")
+            pass
+            # raise RuntimeError("Unidentified piece type calling possibleplays!")
         
     @staticmethod
     def asciistr_to_xy(ascii_position: str) -> tuple((int, int)):
@@ -508,7 +508,7 @@ class Board:
         elif min_piece is not None:
             return maximisingplayer
         else:
-            return True # by default, since no piece in position
+            return False # by default, since no piece in position
 
     def setpiece(self, position: tuple, piece: Piece, is_king: bool, maximisingplayer: bool):
         if maximisingplayer:
@@ -640,15 +640,52 @@ class Board:
             if depth == 50:
                 return 0
             else:
-                win = 1
+                win = 2**32
                 if maximisingplayer: 
                     win *= -1 # maximising player faced with terminal state
                 return win
 
-        if self.terminal or depth == 50:
+        if self.terminal:
             return winlossdraw()
         
         return heuristic_by_piece_type()
+
+    def __repr__(self) -> str:
+        
+        # initialize
+        out = ""
+        verticalSeperator = (self.columns + 1) * 2 * " -" + "\n"
+        horizontalSeparator = " | "
+        letters = "  " + horizontalSeparator
+        for i in range(self.columns):
+            letters += chr(i + Piece.ASCII_OFFSET) + horizontalSeparator
+        
+        # print board and pieces
+        for y in range(self.rows):
+            out += verticalSeperator
+            row = str(y) + horizontalSeparator
+            for x in range(self.columns):
+                maxpiece = self.max_pieces.get((x, y))
+                minpiece = self.min_pieces.get((x, y))
+                if maxpiece is not None:
+                    item = "\033[1;32m" + str(maxpiece) + "\033[0;0m" # green
+                elif minpiece is not None:
+                    item = "\033[1;31m" + str(minpiece) + "\033[0;0m" # red
+                else:
+                    item = " "
+                row += item + horizontalSeparator
+            out += row + "\n"
+        
+        # wrap and put axis labels
+        letters = "  " + horizontalSeparator
+        for j in range(self.columns):
+            letters += chr(j + Piece.ASCII_OFFSET) + horizontalSeparator
+
+        out += verticalSeperator
+        out += letters
+
+        return out
+                
 
 
 #Implement your minimax with alpha-beta pruning algorithm here.
@@ -658,11 +695,10 @@ def ab():
 def alphabeta(board : Board, depth : int, alpha, beta, maximisingplayer : bool) -> tuple: # returns starting position of piece to next position
     
 
-    CUTOFF = 5
+    CUTOFF = 4
 
     if depth == CUTOFF or board.isterminal(maximisingplayer):
         eval, move = board.evaluate(depth, maximisingplayer), None
-        print("depth is", depth, " player 1:", maximisingplayer, " eval:", eval)
         return eval, move
 
 
@@ -710,11 +746,11 @@ def alphabeta(board : Board, depth : int, alpha, beta, maximisingplayer : bool) 
     return value, bestplay
     
 
-def parse_gameboard_and_play(gameboard: dict, visualize = False):
-
+def parse_gameboard(gameboard: dict) -> Board:
     # create board
     board = Board(5, 5)
 
+    # set board
     for position, playerpiece in gameboard.items():
         position = Piece.asciituple_to_xy(position)
         piece_type, player = playerpiece   
@@ -723,8 +759,9 @@ def parse_gameboard_and_play(gameboard: dict, visualize = False):
         is_king = piece_type == "King"
         board.setpiece(position, piece, is_king, maximisingplayer)
 
-    if visualize:
-        print(board)
+    return board
+
+def play(board: Board):
 
     # get move
     eval, move = alphabeta(board, 0, -2**32, 2**32, True)
@@ -732,7 +769,7 @@ def parse_gameboard_and_play(gameboard: dict, visualize = False):
     # convert move to desired format
     start, end = move
     move = (Piece.xy_to_asciituple(start), Piece.xy_to_asciituple(end))
-    return move
+    return eval, move
         
 
 def parse(file_path: str):
@@ -787,14 +824,7 @@ def parse(file_path: str):
     return board
 
 
-def test_run():
-    config = sys.argv[1]
-    gameboard = parse(config)
-    print("Dictionary is:", gameboard)
-    move = parse_gameboard_and_play(gameboard)
-    print("Move is", move)
 
-test_run()
 
 ### DO NOT EDIT/REMOVE THE FUNCTION HEADER BELOW###
 # Chess Pieces: King, Queen, Knight, Bishop, Rook (First letter capitalized)
@@ -811,9 +841,12 @@ test_run()
 # move: A tuple containing the starting position of the piece being moved to the new position for the piece. x-axis in String format and y-axis in integer format.
 # move example: (('a', 0), ('b', 3))
 
-def studentAgent(gameboard):
+def studentAgent(gameboard, parse = False):
     # You can code in here but you cannot remove this function, change its parameter or change the return type
     config = sys.argv[1] #Takes in config.txt Optional
+    if parse:
+        gameboard = parse(config)
 
-    move = parse_gameboard_and_play(gameboard)
+    board = parse_gameboard(gameboard)
+    _, move = play(board)
     return move #Format to be returned (('a', 0), ('b', 3))
