@@ -1,4 +1,5 @@
 from copy import deepcopy
+from logging import exception
 import sys
 
 ### IMPORTANT: Remove any print() functions or rename any print functions/variables/string when submitting on CodePost
@@ -515,10 +516,13 @@ class Board:
             self.max_pieces[position] = piece
             if is_king:
                 self.max_king = piece
+                assert isinstance(piece, Piece)
         else:
             self.min_pieces[position] = piece
             if is_king:
                 self.min_king = piece
+                assert isinstance(piece, Piece)
+
 
 
 
@@ -540,7 +544,6 @@ class Board:
 
 
     def applyplay(self, play: tuple, maximisingplayer: bool):
-
         start, end = play
         self.reset_attacks_grid()
         copy_board = deepcopy(self)
@@ -548,8 +551,15 @@ class Board:
         if maximisingplayer:
 
             # move starting player
-            max_piece = copy_board.max_pieces.pop(start)
-            copy_board.max_pieces[end] = max_piece
+            try:
+                max_piece = copy_board.max_pieces.pop(start)
+                copy_board.max_pieces[end] = max_piece
+            except KeyError:
+                print("\nKeyError!")
+                print(start)
+                print(self)
+                raise Exception(copy_board.max_pieces, self.max_pieces)
+
 
             # remove ending opponent, if applicable
             if copy_board.min_pieces.get(end) is not None:
@@ -560,6 +570,8 @@ class Board:
             # move starting player
             min_piece = copy_board.min_pieces.pop(start)
             copy_board.min_pieces[end] = min_piece
+            assert isinstance(min_piece, Piece)
+
 
             # remove ending opponent, if applicable
             if copy_board.max_pieces.get(end) is not None:
@@ -579,6 +591,11 @@ class Board:
             attacking_pieces = self.max_pieces
             king = self.min_king
 
+        # see if king still there
+        if king == None:
+            self.terminal = True
+            return True
+
         # see if king is attacked
         for position, piece in attacking_pieces.items():
             for new_position in piece.possibleplays(self):
@@ -591,10 +608,10 @@ class Board:
         
         # get all prospective attacks, break when all possible king moves are attacked
         possible_kingmoves = set(king.possibleplays(self))
-        for position, piece in attacking_pieces:
-            piece : Piece = piece 
+        for position, piece in attacking_pieces.items():
             for new_position in piece.possibleplays(self):
-                for look_ahead_position in self.applyplay(position, new_position).possibleplays():
+                look_ahead = self.applyplay((position, new_position), not maximisingplayer).getpossiblemoves(not maximisingplayer)
+                for look_ahead_position in look_ahead:
                     
                     # if clash, remove
                     if look_ahead_position in possible_kingmoves:
@@ -613,7 +630,7 @@ class Board:
 
         def heuristic_by_piece_type():
             PIECES_VALUE = {
-                "King": 0,
+                "King": 100,
                 "Queen": 9,
                 "Rook": 5,
                 "Bishop": 3,
@@ -628,6 +645,9 @@ class Board:
             value = 0
             for _, piece in pieces.items():
                 value += PIECES_VALUE[piece.piece_type]
+
+            if not maximisingplayer:
+                value *= -1    
             return value
 
         def heuristic_by_num_pieces():
@@ -636,14 +656,10 @@ class Board:
             return len(self.min_pieces)
 
         def winlossdraw():
-            assert(depth == 50 or self.terminal)
-            if depth == 50:
-                return 0
-            else:
-                win = 2**32
-                if maximisingplayer: 
-                    win *= -1 # maximising player faced with terminal state
-                return win
+            win = 2**32
+            if not maximisingplayer: 
+                win *= -1 # maximising player faced with terminal state
+            return win
 
         if self.terminal:
             return winlossdraw()

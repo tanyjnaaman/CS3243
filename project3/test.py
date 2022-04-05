@@ -11,7 +11,7 @@ def test_run():
     print("Move is", move)
     print("Eval is:", eval)
 
-test_run()
+# test_run()
 
 def test_game():
 
@@ -46,6 +46,7 @@ def test_game():
         piece = gameboard.pop(start)
         gameboard[end] = piece
         board = parse_gameboard(gameboard)
+        print(gameboard)
         print(board)
 
         inp = input()
