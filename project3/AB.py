@@ -1,5 +1,5 @@
 from copy import deepcopy
-from logging import exception
+import random
 import sys
 
 ### IMPORTANT: Remove any print() functions or rename any print functions/variables/string when submitting on CodePost
@@ -459,8 +459,20 @@ class Piece:
     def __str__(self) -> str:
         return self.symbol
 
+    def __hash__(self) -> int:
+        return hash(self.symbol) + hash(self.current_position)
+
+
 
 class Board:
+
+    # cached data
+    POSSIBLEMOVES_CACHE_MAXIMISING = {} # board -> list
+    POSSIBLEMOVES_CACHE_MINIMISING = {} 
+    EVAL_CACHE = {}
+
+    # stage of game
+    STEPS = 0
     
     def __init__(self, rows: int, columns: int):
 
@@ -481,6 +493,9 @@ class Board:
 
         # flags
         self.terminal = False
+
+        # static 
+        Board.STEPS += 1
 
     # ===== INTERNAL METHODS =====
     
@@ -516,14 +531,10 @@ class Board:
             self.max_pieces[position] = piece
             if is_king:
                 self.max_king = piece
-                assert isinstance(piece, Piece)
         else:
             self.min_pieces[position] = piece
             if is_king:
                 self.min_king = piece
-                assert isinstance(piece, Piece)
-
-
 
 
     # ===== GAME EXTERNAL METHODS =====
@@ -531,6 +542,14 @@ class Board:
     def getpossiblemoves(self, maximisingplayer : bool) -> list:
         possibleplays = []
 
+        # use cached value if possible
+        cache = Board.POSSIBLEMOVES_CACHE_MAXIMISING if maximisingplayer else Board.POSSIBLEMOVES_CACHE_MINIMISING
+        if cache.get(self) is not None:
+            possibleplays = cache.get(self) # use cached value
+            random.shuffle(possibleplays) # shuffle dynamically
+            return possibleplays
+
+        # else calculate and cache
         if maximisingplayer:
             pieces = self.max_pieces
         else: 
@@ -540,6 +559,9 @@ class Board:
             piece : Piece = piece 
             for new_position in piece.possibleplays(self):
                 possibleplays.append((position, new_position))
+
+        cache[self] = possibleplays # cache
+        random.shuffle(possibleplays) # shuffle
         return possibleplays
 
 
@@ -551,19 +573,14 @@ class Board:
         if maximisingplayer:
 
             # move starting player
-            try:
-                max_piece = copy_board.max_pieces.pop(start)
-                copy_board.max_pieces[end] = max_piece
-            except KeyError:
-                print("\nKeyError!")
-                print(start)
-                print(self)
-                raise Exception(copy_board.max_pieces, self.max_pieces)
-
+            max_piece = copy_board.max_pieces.pop(start)
+            copy_board.max_pieces[end] = max_piece
 
             # remove ending opponent, if applicable
             if copy_board.min_pieces.get(end) is not None:
-                copy_board.min_pieces.pop(end)
+                ejected = copy_board.min_pieces.pop(end)
+                if ejected.piece_type == "King":
+                    copy_board.min_king = None
 
         else:
 
@@ -572,16 +589,17 @@ class Board:
             copy_board.min_pieces[end] = min_piece
             assert isinstance(min_piece, Piece)
 
-
             # remove ending opponent, if applicable
             if copy_board.max_pieces.get(end) is not None:
-                copy_board.max_pieces.pop(end)
+                ejected = copy_board.max_pieces.pop(end)
+                if ejected.piece_type == "King":
+                    copy_board.max_king = None
 
         return copy_board # copy
             
 
     def isterminal(self, maximisingplayer: bool) -> bool:
-        
+
         # initialize
         attacked = False
         if maximisingplayer:
@@ -591,52 +609,26 @@ class Board:
             attacking_pieces = self.max_pieces
             king = self.min_king
 
-        # see if king still there
-        if king == None:
+        # see if king still there or no more moves to make
+        if king is None or len(self.getpossiblemoves(maximisingplayer)) == 0:
             self.terminal = True
             return True
 
-        # see if king is attacked
-        for position, piece in attacking_pieces.items():
-            for new_position in piece.possibleplays(self):
-                if king.current_position == new_position:
-                    attacked = True
-                    break
-
-        if not attacked:
-            return False # early exit if not attacked
-        
-        # get all prospective attacks, break when all possible king moves are attacked
-        possible_kingmoves = set(king.possibleplays(self))
-        for position, piece in attacking_pieces.items():
-            for new_position in piece.possibleplays(self):
-                look_ahead = self.applyplay((position, new_position), not maximisingplayer).getpossiblemoves(not maximisingplayer)
-                for look_ahead_position in look_ahead:
-                    
-                    # if clash, remove
-                    if look_ahead_position in possible_kingmoves:
-                        possible_kingmoves.pop(look_ahead_position)
-
-                    # no more moves?
-                    if len(possible_kingmoves) == 0:
-                        self.terminal = True
-                        return True
-
         return False
-        
-
 
     def evaluate(self, depth: int, maximisingplayer: bool) -> float:
 
+        PIECES_VALUE = {
+            "King": 25,
+            "Queen": 9, # or 9
+            "Rook": 5, # or 5
+            "Bishop": 3,
+            "Knight": 3,
+            "Pawn": 1 
+        }
+
         def heuristic_by_piece_type():
-            PIECES_VALUE = {
-                "King": 100,
-                "Queen": 9,
-                "Rook": 5,
-                "Bishop": 3,
-                "Knight": 3,
-                "Pawn": 1 
-            }
+
             if maximisingplayer:
                 pieces = self.max_pieces
             else:
@@ -650,21 +642,36 @@ class Board:
                 value *= -1    
             return value
 
+        def competitive_heuristic_by_piece_type():
+
+            maxplayervalue = sum([PIECES_VALUE[piece.piece_type] for _, piece in self.max_pieces.items()])
+            minplayervalue = sum([PIECES_VALUE[piece.piece_type] for _, piece in self.min_pieces.items()])
+            difference = maxplayervalue - minplayervalue
+
+            return difference
+
         def heuristic_by_num_pieces():
             if maximisingplayer:
                 return len(self.max_pieces)
             return len(self.min_pieces)
 
         def winlossdraw():
-            win = 2**32
-            if not maximisingplayer: 
-                win *= -1 # maximising player faced with terminal state
-            return win
+            if self.terminal:
+                WIN = sum(list(PIECES_VALUE.values()))
+                if not maximisingplayer: 
+                    WIN *= -1 # maximising player faced with terminal state
+                return WIN
+            else: 
+                return 0
 
-        if self.terminal:
-            return winlossdraw()
+        if Board.EVAL_CACHE.get(self) is not None:
+            return Board.EVAL_CACHE(self)
         
-        return heuristic_by_piece_type()
+        eval = competitive_heuristic_by_piece_type()
+        Board.EVAL_CACHE[self] = eval
+        return eval
+
+    # ===== OVERWRITTEN METHODS =====
 
     def __repr__(self) -> str:
         
@@ -693,7 +700,7 @@ class Board:
             out += row + "\n"
         
         # wrap and put axis labels
-        letters = "  " + horizontalSeparator
+        letters = " " + horizontalSeparator
         for j in range(self.columns):
             letters += chr(j + Piece.ASCII_OFFSET) + horizontalSeparator
 
@@ -701,41 +708,50 @@ class Board:
         out += letters
 
         return out
+    
+    def  __hash__(self) -> int:
+        return hash(self.__repr__())
                 
-
-
-#Implement your minimax with alpha-beta pruning algorithm here.
-def ab():
-    pass
 
 def alphabeta(board : Board, depth : int, alpha, beta, maximisingplayer : bool) -> tuple: # returns starting position of piece to next position
     
+    CUTOFF_DICT = {
+        "early" : 2,
+        "middle" : 2,
+        "late" : 2
+    }
 
-    CUTOFF = 4
+    EARLY_STEPS = 5
+    MID_STEPS = 20
+
+    if Board.STEPS < EARLY_STEPS:
+        stage = "early"
+    elif Board.STEPS < MID_STEPS:
+        stage = "middle"
+    else: 
+        stage = "late"
+    CUTOFF = CUTOFF_DICT[stage]
 
     if depth == CUTOFF or board.isterminal(maximisingplayer):
         eval, move = board.evaluate(depth, maximisingplayer), None
         return eval, move
 
-
     bestplay = None
-    
     possibleplays = board.getpossiblemoves(maximisingplayer)
 
-
     # ===== MAX PLAYER =====
-    if maximisingplayer: # == 1
-        value = -1
+    if maximisingplayer == True: # == 1
+        value = -2**32
         for play in possibleplays:
             childstate = board.applyplay(play, maximisingplayer)
             
             # if better than current value, record
-            downstreamvalue, _ = alphabeta(childstate, depth + 1, alpha, beta, not maximisingplayer)
+            downstreamvalue, _ = alphabeta(childstate, depth + 1, alpha, beta, False)
             if downstreamvalue > value:
                 value = downstreamvalue
                 bestplay = play
 
-            alpha = max(alpha, value) # record max so far for every child
+                alpha = max(alpha, value) # record max so far for every child
 
             # prune
             if value >= beta: 
@@ -748,12 +764,11 @@ def alphabeta(board : Board, depth : int, alpha, beta, maximisingplayer : bool) 
             childstate = board.applyplay(play, maximisingplayer)
             
             # if better than current value, record
-            downstreamvalue, _ = alphabeta(childstate, depth + 1, alpha, beta, not maximisingplayer)
+            downstreamvalue, _ = alphabeta(childstate, depth + 1, alpha, beta, True)
             if downstreamvalue < value:
                 value = downstreamvalue
                 bestplay = play
-
-            beta = min(beta, value) # record max so far for every child
+                beta = min(beta, value) # record max so far for every child
 
             # prune
             if value <= alpha: 
@@ -772,7 +787,7 @@ def parse_gameboard(gameboard: dict) -> Board:
         piece_type, player = playerpiece   
         maximisingplayer =  (player == "White")      
         piece = Piece(piece_type, position, maximisingplayer)
-        is_king = piece_type == "King"
+        is_king = (piece_type == "King")
         board.setpiece(position, piece, is_king, maximisingplayer)
 
     return board

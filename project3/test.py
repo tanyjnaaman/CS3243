@@ -38,16 +38,20 @@ def test_game():
         # parse to board and play
         board = parse_gameboard(gameboard)
         print(board)
+        print("evaluation is", board.evaluate(1, maximisingplayer=False))
+
+        # apply MAX player move
         eval, move = play(board)
         print("\n In response, MAX PLAYER move is", move)
 
-        # apply MAX player move
         start, end = move
         piece = gameboard.pop(start)
         gameboard[end] = piece
         board = parse_gameboard(gameboard)
         print(gameboard)
         print(board)
+        print("evaluation is", board.evaluate(1, maximisingplayer=True))
+        print("look ahead eval is", eval)
 
         inp = input()
 
